@@ -31,8 +31,8 @@ export default class WebsocketHeartbeat {
   constructor({
     url,
     pingChat = 'heartbeat',
-    pingTime = 30 * 1000,
-    pongTime = 15 * 1000,
+    pingTime = 20 * 1000,
+    pongTime = 10 * 1000,
     reconnetTime = 4000,
     reconnectLimit = null
   }) {

@@ -61,7 +61,7 @@ ws.onerror = () => {
 #### `pongTime`
 - 这是websocket ping后未收到消息的超时时间
 - Accepts `Number`
-- Default: `2000`
+- Default: `10000`
 
 #### `reconnetTime`
 - 这是websocket重新连接时间
