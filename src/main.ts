@@ -59,19 +59,19 @@ export default class WebsocketHeartbeat {
   }
   initEventHandle() {
     this.ws.onclose = (value) => {
-      this.onclose(value);
+      this.onclose && this.onclose(value);
       this.reconnect();
     };
     this.ws.onerror = (value) => {
-      this.onerror(value);
+      this.onerror && this.onerror(value);
       this.reconnect();
     };
     this.ws.onopen = (value) => {
-      this.onopen(value);
+      this.onopen && this.onopen(value);
       this._checkHeartbeat();
     };
     this.ws.onmessage = (event) => {
-      this.onmessage(event);
+      this.onmessage && this.onmessage(event);
       this._checkHeartbeat();
     };
   }
