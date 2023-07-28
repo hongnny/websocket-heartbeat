@@ -9,7 +9,9 @@ type optionsTypes = {
   // 重连间隔
   reconnetTime: number
   // 重连次数
-  reconnectLimit: null | number
+  reconnectCount: null | number,
+  // ws是否自动增加时间戳
+  timestamp: boolean
 }
 
 type fn  = (value?: any) => {}
@@ -18,15 +20,27 @@ type fn  = (value?: any) => {}
 export default class WebsocketHeartbeat {
   option: optionsTypes
   ws: WebSocket
-  onopen: fn
-  onmessage: fn
-  onreconnect: fn
-  onclose: fn
-  onerror: fn
-  repeatCount: number
+  // ws打开
+  onopen?: fn
+  // 收到消息
+  onmessage?: fn
+  // 重连
+  onreconnect?: fn
+  // 连接关闭
+  onclose?: fn
+  // 出错
+  onerror?: fn
+  // 连接结束
+  onend?: fn
+  // 重连次数
+  limit: number
+  // 重连的间隔时间
   reconnectTimer: any
+  // 未收到消息，向服务器发送请求的间隔时间
   heartbeatPingTimer: any
+  // 发送请求后，等待服务器响应的间隔时间
   heartbeatPongTimer: any
+  // 如果主动关闭socket就不再重连
   forbidenHeartbeat: boolean
   constructor({
     url,
@@ -34,7 +48,8 @@ export default class WebsocketHeartbeat {
     pingTime = 20 * 1000,
     pongTime = 10 * 1000,
     reconnetTime = 4000,
-    reconnectLimit = null
+    reconnectCount = null,
+    timestamp = true
   }) {
     this.option = {
       url,
@@ -42,19 +57,21 @@ export default class WebsocketHeartbeat {
       pingTime,
       pongTime,
       reconnetTime,
-      reconnectLimit
+      reconnectCount,
+      timestamp
     }
-    this.repeatCount = 0
+    this.limit = 0
     this.forbidenHeartbeat = false;
     this.init();
   }
   init() {
     try {
-      this.ws = new WebSocket(this.option.url)
+      const url = this.option.url + (this.option.timestamp ? `?t=${Date.now()}` : '')
+      this.ws = new WebSocket(url)
       this.initEventHandle()
     } catch (error) {
-        this.reconnect()
-        throw error
+      this.reconnect()
+      throw error
     }
   }
   initEventHandle() {
@@ -68,21 +85,26 @@ export default class WebsocketHeartbeat {
     };
     this.ws.onopen = (value) => {
       this.onopen && this.onopen(value);
+      // 开始心跳检测
       this._checkHeartbeat();
     };
     this.ws.onmessage = (event) => {
       this.onmessage && this.onmessage(event);
+      // 收到消息，连接正常，重置心跳检测
       this._checkHeartbeat();
     };
   }
   reconnect() {
-    if (this.option.reconnectLimit !== null && this.option.reconnectLimit <= this.repeatCount) return;
+    if (this.option.reconnectCount !== null && this.option.reconnectCount <= this.limit) {
+      return this.onend && this.onend('Reconnection has exceeded the maximum limit')
+    }
+    // 如果主动关闭socket就不再重连
     if (this.forbidenHeartbeat) return;
-    this.repeatCount++;
-    this.onreconnect();
-    //没连接上会一直重连，设置延迟避免请求过多
+    // 没连接上会一直重连，设置延迟避免请求过多
     clearTimeout(this.reconnectTimer)
     this.reconnectTimer = setTimeout(() => {
+      this.limit++;
+      this.onreconnect();
       this.init();
     }, this.option.reconnetTime);
   }
@@ -94,6 +116,7 @@ export default class WebsocketHeartbeat {
   }
   close() {
     this._clearHeartbeatTimer();
+    // 如果主动关闭socket就不再重连
     this.forbidenHeartbeat = true;
     this.ws && this.ws.close();
   }
